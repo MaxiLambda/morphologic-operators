@@ -116,19 +116,28 @@
          (errosion mask)))
     ([image] (closing image (ones 3 3))))
 
+(defn matrix-operator2 "takes a BiFunction and combines two matrices with it"
+    [combinator]
+    (fn [matrix1 matrix2] (vectorize (map #(map combinator %1 %2) matrix1 matrix2))))
 (defn intersection [matrix1 matrix2]
-    (vectorize (map #(map bit-and %1 %2) matrix1 matrix2 )))
+    ((matrix-operator2 bit-and) matrix1 matrix2))
 
 (defn union [matrix1 matrix2]
-    (vectorize (map #(map bit-or %1 %2) matrix1 matrix2 )))
+    ((matrix-operator2 bit-or) matrix1 matrix2))
 
+(defn xor [matrix1 matrix2]
+    ((matrix-operator2 bit-xor) matrix1 matrix2))
+(defn minus [matrix1 matrix2]
+    ((matrix-operator2 #(max (- %1 %2) 0)) matrix1 matrix2))
 (defn hit-miss
     "(intersection mask1 mask2) should be all zeros,
     if the masks don't have the same size they are expanded with zero padding"
     [image mask1 mask2]
     (intersection (diletation image mask1)
-           (invert (diletation image mask2))))
-(def hit-miss-m1 [[1 1 1]])
-(def hit-miss-m2 [[1 1 1 1 1]
-                  [1 0 0 0 1]
-                  [1 1 1 1 1]])
+                  (invert (errosion image mask2))))
+
+(defn outer-border [image]
+    (intersection (diletation image) (invert image)))
+
+(defn inner-border [image]
+    (intersection image (invert (errosion image))))
