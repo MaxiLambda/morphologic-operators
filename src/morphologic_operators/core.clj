@@ -11,6 +11,10 @@
 (defn zeros [height length]
     (uniform 0 height length))
 
+(defn pretty [matrix]
+    (for [row matrix]
+        (println row)))
+
 (defn vectorize [col]
     (vec (map vec col)))
 
@@ -33,7 +37,7 @@
             (< x max-x)
             (> x -1))))
 
-(defn errosion-check [image yx]
+(defn errosion-check [image yx] "checks if the image has a 1 at every given coordinate"
     (every? #(= 1 %) (map #(get-at image %) yx)))
 
 (defn errosion
@@ -72,7 +76,7 @@
                                 0))))))
     ([image] (errosion image (ones 3 3))))
 
-(defn diletation-check [image yx]
+(defn diletation-check [image yx] "checks if the image has a 1 at any given coordinate"
     (some? (some #(= 1 %) (map #(get-at image %) yx))))
 
 (defn diletation
