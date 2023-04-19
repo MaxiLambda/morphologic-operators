@@ -1,4 +1,5 @@
-(ns morphologic-operators.core)
+(ns morphologic-operators.core
+    (:import (clojure.lang PersistentVector)))
 
 (defn uniform [val height length]
     "length and height have to be positive integers"
@@ -12,7 +13,7 @@
     (uniform 0 height length))
 
 (defn pretty [matrix]
-    (for [row matrix]
+    (doseq [row matrix]
         (println row)))
 
 (defn vectorize [col]
@@ -37,9 +38,16 @@
             (< x max-x)
             (> x -1))))
 
-(defn errosion-check [image yx] "checks if the image has a 1 at every given coordinate"
-    (every? #(= 1 %) (map #(get-at image %) yx)))
+(defn errosion-check [image yx]
+    "checks if the image shall be eroded based on the given indices"
+    (not (every? #(= 1 %) (map #(get-at image %) yx))))
 
+(defmulti invert (fn [arg] (class arg)))
+(defmethod invert Number [val]
+    (bit-xor 1 val))
+
+(defmethod invert PersistentVector [val]
+    (vec (map invert val)))
 (defn errosion
     "1 -> 0
     image and mask are both matrices containing only 0 and 1
@@ -64,16 +72,10 @@
                                 y'x'-ones (filter #(= 1 (get-at mask %)) y'x')
                                 ;transform to offsets in image
                                 y'x'-offset (map #(map - % [mask-center-y mask-center-x]) y'x'-ones)
-                                y'x'-image (map #(map + % [y x]) y'x'-offset)]]
-                        (if (or
-                                (not= 1 (get-at image y x))
-                                (not-every? #(is-valid? image-max-y image-max-x %) y'x'-ones))
-                            ;if even one is not valid
-                            0
-                            ;all y'x' can be evaluated
-                            (if (errosion-check image y'x'-image)
-                                1
-                                0))))))
+                                y'x'-image (map #(map + % [y x]) y'x'-offset)
+                                ;look only at points in the image with valid coordinates
+                                y'x'-valid (filter #(is-valid? image-max-y image-max-x %) y'x'-image)]]
+                        (if (or (= 0 (get-at image y x)) (errosion-check image y'x'-valid)) 0 1)))))
     ([image] (errosion image (ones 3 3))))
 
 (defn diletation-check [image yx] "checks if the image has a 1 at any given coordinate"
@@ -106,5 +108,19 @@
                                 y'x'-image (map #(map + % [y x]) y'x'-offset)
                                 ;look only at points in the image with valid coordinates
                                 y'x'-valid (filter #(is-valid? image-max-y image-max-x %) y'x'-image)]]
-                        (if (diletation-check image y'x'-valid) 1 0)))))
+                        (if (or (= 1 (get-at image y x)) (diletation-check image y'x'-valid)) 1 0)))))
     ([image] (diletation image (ones 3 3))))
+
+(defn opening "removes clusters and noise"
+    ([image mask]
+     (-> image
+         (errosion mask)
+         (diletation mask)))
+    ([image] (opening image (ones 3 3))))
+
+(defn closing "removes holes"
+    ([image mask]
+     (-> image
+         (diletation mask)
+         (errosion mask)))
+    ([image] (closing image (ones 3 3))))
